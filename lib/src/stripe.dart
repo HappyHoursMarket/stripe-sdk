@@ -30,7 +30,7 @@ class Stripe {
 
   final StripeApi api;
   static Stripe? _instance;
-  String? returnUrlForSca;
+  static String? _returnUrlForSca;
 
   /// Access the instance of Stripe by calling [Stripe.instance].
   /// Throws an [Exception] if [Stripe.init] hasn't been called previously.
@@ -55,19 +55,20 @@ class Stripe {
   /// It is required to use your own app specific url scheme and host. This
   /// parameter must match your "android/app/src/main/AndroidManifest.xml"
   /// and "ios/Runner/Info.plist" configuration.
-  static void init(String publishableKey, {String? stripeAccount, this.returnUrlForSca}) {
+  static void init(String publishableKey, {String? stripeAccount, String? returnUrlForSca}) {
     _instance = Stripe(publishableKey, stripeAccount: stripeAccount);
     StripeApi.init(publishableKey, stripeAccount: stripeAccount);
+    _returnUrlForScale = returnUrlForSca;
   }
 
   /// Creates a return URL that can be used to authenticate a single PaymentIntent.
   /// This should be set on the intent before attempting to authenticate it.
   String getReturnUrlForSca({String? webReturnUrl}) {
     if (kIsWeb) {
-      return webReturnUrl ?? returnUrlForSca ?? StripeUiOptions.defaultWebReturnUrl;
+      return webReturnUrl ?? _returnUrlForSca ?? StripeUiOptions.defaultWebReturnUrl;
     } else {
       final requestId = Random.secure().nextInt(99999999);
-      return '${returnUrlForSca ?? StripeUiOptions.defaultMobileReturnUrl}?requestId=$requestId';
+      return '${_returnUrlForSca ?? StripeUiOptions.defaultMobileReturnUrl}?requestId=$requestId';
     }
   }
 
