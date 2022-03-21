@@ -58,7 +58,7 @@ class Stripe {
   static void init(String publishableKey, {String? stripeAccount, String? returnUrlForSca}) {
     _instance = Stripe(publishableKey, stripeAccount: stripeAccount);
     StripeApi.init(publishableKey, stripeAccount: stripeAccount);
-    _returnUrlForScale = returnUrlForSca;
+    _returnUrlForSca = returnUrlForSca;
   }
 
   /// Creates a return URL that can be used to authenticate a single PaymentIntent.
