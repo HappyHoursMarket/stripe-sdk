@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -8,7 +9,7 @@ import "package:universal_html/html.dart" as html;
 import 'package:url_launcher/url_launcher.dart';
 
 import 'stripe_api.dart';
-import 'ui/stripe_ui.dart';
+import 'stripe_config.dart';
 
 class Stripe {
   /// Creates a new [Stripe] object. Use this constructor if you wish to handle the instance of this class by yourself.
@@ -80,6 +81,8 @@ class Stripe {
       clientSecret,
       data: {'return_url': getReturnUrlForSca(webReturnUrl: webReturnPath)},
     );
+    // ignore: use_build_context_synchronously
+    if (!context.mounted) return {};
     return _handleSetupIntent(intent, context);
   }
 
@@ -95,6 +98,8 @@ class Stripe {
         'payment_method': paymentMethod,
       },
     );
+    // ignore: use_build_context_synchronously
+    if (!context.mounted) return {};
     return _handleSetupIntent(intent, context);
   }
 
@@ -109,7 +114,74 @@ class Stripe {
       paymentIntentClientSecret,
       data: data,
     );
+    // ignore: use_build_context_synchronously
+    if (!context.mounted) return {};
     return _handlePaymentIntent(paymentIntent, context);
+  }
+
+  /// Confirm and authenticate a payment with Google Pay.
+  /// /// [paymentResult] must be the result of requesting a Google Pay payment with the `pay` library.
+  /// Returns the PaymentIntent.
+  Future<Map<String, dynamic>> confirmPaymentWithGooglePay(BuildContext context,
+      {required String paymentIntentClientSecret, required Map<String, dynamic> paymentResult}) async {
+    final data = <String, dynamic>{'return_url': getReturnUrlForSca()};
+    final String token = paymentResult['paymentMethodData']['tokenizationData']['token'] as String;
+    final tokenJson = jsonDecode(token) as Map<String, dynamic>;
+    final tokenId = tokenJson['id'] as String;
+    data['payment_method_data'] = {
+      'type': 'card',
+      "card": {"token": tokenId}
+    };
+    final Map<String, dynamic> paymentIntent = await api.confirmPaymentIntent(
+      paymentIntentClientSecret,
+      data: data,
+    );
+    // ignore: use_build_context_synchronously
+    if (!context.mounted) return {};
+    return _handlePaymentIntent(paymentIntent, context);
+  }
+
+  /// Confirm and authenticate a payment with Apple Pay.
+  /// [paymentResult] must be the result of requesting a Apple Pay payment with the `pay` library.
+  /// Returns the PaymentIntent.
+  Future<Map<String, dynamic>> confirmPaymentWithApplePay(BuildContext context,
+      {required String paymentIntentClientSecret, required Map<String, dynamic> paymentResult}) async {
+    final tokenPayload = <String, dynamic>{};
+    tokenPayload['pk_token'] = paymentResult['token'];
+    final paymentMethod = _getPaymentMethod(paymentResult['paymentMethod']);
+    tokenPayload['pk_token_instrument_name'] = paymentMethod['displayName'];
+    tokenPayload['pk_token_payment_network'] = paymentMethod['network'];
+    tokenPayload['card'] = <String, dynamic>{};
+    tokenPayload['pk_token_transaction_id'] = paymentResult['transactionIdentifier'];
+
+    if (tokenPayload['pk_token_transaction_id'] == "Simulated Identifier") {
+      tokenPayload['pk_token_transaction_id'] =
+          "ApplePayStubs~4242424242424242~200~USD~${DateTime.now().millisecondsSinceEpoch}";
+    }
+
+    final stripeToken = await api.createToken(tokenPayload);
+    final tokenId = stripeToken['id'] as String;
+
+    final data = <String, dynamic>{'return_url': getReturnUrlForSca()};
+    data['payment_method_data'] = {
+      'type': 'card',
+      "card": {"token": tokenId}
+    };
+    final Map<String, dynamic> paymentIntent = await api.confirmPaymentIntent(
+      paymentIntentClientSecret,
+      data: data,
+    );
+    // ignore: use_build_context_synchronously
+    if (!context.mounted) return {};
+    return _handlePaymentIntent(paymentIntent, context);
+  }
+
+  Map<String, dynamic> _getPaymentMethod(dynamic paymentMethod) {
+    if (paymentMethod is String) {
+      return jsonDecode(paymentMethod) as Map<String, dynamic>;
+    } else {
+      return paymentMethod as Map<String, dynamic>;
+    }
   }
 
   /// Authenticate a payment.
@@ -117,6 +189,8 @@ class Stripe {
   /// https://stripe.com/docs/payments/payment-intents/android-manual
   Future<Map<String, dynamic>> authenticatePayment(String paymentIntentClientSecret, BuildContext context) async {
     final Map<String, dynamic> paymentIntent = await api.retrievePaymentIntent(paymentIntentClientSecret);
+    // ignore: use_build_context_synchronously
+    if (!context.mounted) return {};
     return _handlePaymentIntent(paymentIntent, context);
   }
 
@@ -157,6 +231,8 @@ class Stripe {
     late StreamSubscription<html.Event> subscription;
     subscription = html.window.onFocus.listen((event) async {
       final intent = await getIntentFunction(clientSecret);
+      // ignore: use_build_context_synchronously
+      if (!context.mounted) return;
       if (intent['status'] != 'requires_action') {
         Navigator.of(context).pop();
         subscription.cancel();
@@ -183,14 +259,14 @@ class Stripe {
             child: const Text("Open new window"),
             onPressed: () {
               Navigator.of(context).pop();
-              launch(url, enableJavaScript: true);
+              launchUrl(Uri.parse(url));
             },
           )
         ],
       ),
     );
 
-    await launch(url, enableJavaScript: true);
+    await launchUrl(Uri.parse(url));
 
     return completer.future;
   }

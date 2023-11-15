@@ -1,7 +1,7 @@
 import 'package:collection/collection.dart' show IterableExtension;
 import 'package:flutter/material.dart';
-
-import '../../../stripe_sdk_ui.dart';
+import 'package:stripe_sdk/stripe_sdk.dart';
+import 'package:stripe_sdk_example/ui/payment_methods_screen.dart';
 
 typedef OnPaymentMethodSelected = void Function(String?);
 
@@ -14,7 +14,7 @@ class PaymentMethodSelector extends StatefulWidget {
     this.initialPaymentMethodId,
     this.selectorType = SelectorType.radioButton,
     Key? key,
-    this.selectFirstByDefault = true,
+    this.selectFirstByDefault = false,
   })  : _paymentMethodStore = paymentMethodStore ?? PaymentMethodStore.instance,
         super(key: key);
 
@@ -52,13 +52,15 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
       setState(() {
         _paymentMethods = widget._paymentMethodStore.paymentMethods;
         _isLoading = widget._paymentMethodStore.isLoading;
-        if (widget.selectFirstByDefault && _selectedPaymentMethod == null) {
-          _selectedPaymentMethod = _paymentMethods?.firstOrNull;
-          if (_selectedPaymentMethod != null) {
-            WidgetsBinding.instance!.addPostFrameCallback((_) {
-              widget.onChanged(_selectedPaymentMethod!.id);
-            });
+        if (!_paymentMethods!.contains(_selectedPaymentMethod) || _selectedPaymentMethod == null) {
+          if (widget.selectFirstByDefault && _selectedPaymentMethod == null) {
+            _selectedPaymentMethod = _paymentMethods?.firstOrNull;
+          } else {
+            _selectedPaymentMethod = null;
           }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            widget.onChanged(_selectedPaymentMethod?.id);
+          });
         }
       });
     }
@@ -75,18 +77,6 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            OutlinedButton(
-                onPressed: () async {
-                  final id = await Navigator.push(
-                      context, AddPaymentMethodScreen.route(paymentMethodStore: widget._paymentMethodStore));
-                  if (id != null) {
-                    await widget._paymentMethodStore.refresh();
-                    setState(() {
-                      _selectedPaymentMethod = _getPaymentMethodById(id);
-                    });
-                  }
-                },
-                child: const Text('+ Add card')),
             OutlinedButton(
                 onPressed: () async {
                   final _ = await Navigator.push(
@@ -117,7 +107,7 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
       shrinkWrap: true,
       itemBuilder: (context, index) {
         final item = _paymentMethods![index];
-        return RadioListTile<String>(
+        return RadioListTile<String?>(
             title: Text(item.brand.toUpperCase()),
             secondary: Text(item.last4),
             subtitle: Text(item.getExpirationAsString()),

@@ -3,13 +3,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:stripe_sdk/stripe_sdk.dart';
-import 'package:stripe_sdk/stripe_sdk_ui.dart';
 import 'package:stripe_sdk_example/ui/intent_complete_screen.dart';
 
 import 'locator.dart';
 import 'network/network_service.dart';
 import 'setup_intent_with_sca.dart';
 import 'ui/edit_customer_screen.dart';
+import 'ui/payment_methods_screen.dart';
 import 'ui/payment_screen.dart';
 
 const _stripePublishableKey = 'pk_test_FlC2pf2JCTgKLcgG0aScSQmp00XqfTJL8s';
@@ -69,30 +69,18 @@ class HomeScreen extends StatelessWidget {
       body: ListView(children: <Widget>[
         Card(
           child: ListTile(
-            title: const Text('Customer Details'),
+            title: const Text('User Details'),
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EditCustomerScreen())),
           ),
         ),
         Card(
           child: ListTile(
-            title: const Text('Payment Methods Screen'),
+            title: const Text('Payment Methods'),
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) {
               final paymentMethods = Provider.of<PaymentMethodStore>(context, listen: false);
               // ignore: deprecated_member_use
               return PaymentMethodsScreen(paymentMethodStore: paymentMethods);
             })),
-          ),
-        ),
-        const Card(
-          child: ListTile(
-            title: Text('Add Payment Method with Setup Intent'),
-            // onTap: () => createPaymentMethodWithSetupIntent(context),
-          ),
-        ),
-        const Card(
-          child: ListTile(
-            title: Text('Add Payment Method without Setup Intent'),
-            // onTap: () => createPaymentMethodWithoutSetupIntent(context),
           ),
         ),
         Card(
@@ -111,23 +99,4 @@ class HomeScreen extends StatelessWidget {
       ]),
     );
   }
-
-// void createPaymentMethodWithSetupIntent(BuildContext context) async {
-//   final networkService = locator.get<NetworkService>();
-//   await Navigator.push(
-//       context,
-//       MaterialPageRoute(
-//           builder: (context) =>
-//               // ignore: deprecated_member_use
-//               AddPaymentMethodScreen.withSetupIntent(networkService.createSetupIntent)));
-// }
-
-// void createPaymentMethodWithoutSetupIntent(BuildContext context) async {
-//   await Navigator.push(
-//       context,
-//       MaterialPageRoute(
-//           builder: (context) =>
-//               // ignore: deprecated_member_use
-//               AddPaymentMethodScreen.withoutSetupIntent()));
-// }
 }

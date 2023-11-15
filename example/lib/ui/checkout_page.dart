@@ -1,14 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:stripe_sdk/src/stripe_error.dart';
-import 'package:stripe_sdk/src/ui/stripe_ui.dart';
+import 'package:stripe_sdk/stripe_sdk.dart';
 
-import '../stripe.dart';
-import 'models.dart';
+import 'payment_method_selector.dart';
 import 'progress_bar.dart';
-import 'stores/payment_method_store.dart';
-import 'widgets/payment_method_selector.dart';
 
 class CheckoutPage extends StatefulWidget {
   final Future<IntentClientSecret> Function() createPaymentIntent;
@@ -59,6 +55,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 initialPaymentMethodId: null,
                 onChanged: (value) => setState(() {
                       _selectedPaymentMethod = value;
+                      debugPrint("Selected paymentMethod changed: $value");
                     })),
           ),
           FutureBuilder<Map<String, dynamic>>(
@@ -93,16 +90,22 @@ class _CheckoutPageState extends State<CheckoutPage> {
   void Function() _createAttemptPaymentFunction(BuildContext context, Future<IntentClientSecret> paymentIntentFuture) {
     return () async {
       showProgressDialog(context);
-      final initialPaymentIntent = await paymentIntentFuture.whenComplete(() => hideProgressDialog(context));
+      final initialPaymentIntent = await paymentIntentFuture.catchError((error) {
+        hideProgressDialog(context);
+        throw error;
+      });
       try {
         final confirmedPaymentIntent = await Stripe.instance
             .confirmPayment(initialPaymentIntent.clientSecret, context, paymentMethodId: _selectedPaymentMethod);
         if (confirmedPaymentIntent['status'] == 'succeeded') {
           widget.onPaymentSuccess(context, confirmedPaymentIntent);
+          hideProgressDialog(context);
         } else {
           widget.onPaymentFailed(context, confirmedPaymentIntent);
+          hideProgressDialog(context);
         }
       } catch (e) {
+        hideProgressDialog(context);
         debugPrint(e.toString());
         if (e is StripeApiException) {
           widget.onPaymentError(context, e);

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:stripe_sdk/stripe_sdk.dart';
-import 'package:stripe_sdk/stripe_sdk_ui.dart';
 import 'package:stripe_sdk_example/network/network_service.dart';
 
 import 'locator.dart';
@@ -57,7 +56,10 @@ class SetupIntentWithScaScreen extends StatelessWidget {
       return;
     }
     final setupIntent = await stripe.authenticateSetupIntent(createSetupIntentResponse.clientSecret,
-        webReturnPath: routeSettings?.name, context: context);
+        webReturnPath: routeSettings?.name, context: context).onError((error, stackTrace) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+          return {"status": "failed"};
+        });
     hideProgressDialog(context);
     Navigator.pop(context, setupIntent['status'] == 'succeeded');
   }
